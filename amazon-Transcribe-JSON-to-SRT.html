@@ -1,0 +1,119 @@
+<html><head>
+
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <title>
+        Amazon Transcribe to SRT Converter
+    </title>
+    <!-- Forked from https://www.yash.info/aws-srt-creator.htm -->
+    <style>
+        * {
+            font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+            font-size: 14px;
+        }
+    </style>
+    <script>
+        function createSRT() {
+            document.getElementById("srt").value = "";
+
+            // Each chunk represents a caption to displayed on the screen,
+            // with a sentence (or piece of one), plus a start and end time.
+            var chunks = [];
+            // Chunk holds the metadata for the chunk we're currently adding to
+            var chunk = {
+                start_time: '',
+                end_time: '',
+                word_index: 1,
+                sentence: ''
+            };
+            
+            // Determine the max length of a given caption
+            var use_word_break_limit = document.getElementById("word-break").checked;
+            var word_break_limit = parseInt(document.getElementById("words").value);
+            
+            // Get the Amazon JSON
+            var j = JSON.parse(document.getElementById("txt").value);
+            var items = j.results.items;
+
+            // Loop through every word and punctuation mark
+            for (i = 0; i < items.length; i++) {
+                var type = items[i].type;
+                var content = items[i].alternatives[0].content;
+
+                // if a word, set the start time and end time (the latter is subject to change)
+                // then add it to the current chunk         
+                if (type == "pronunciation") {
+                    if (chunk['start_time'] == "") {
+                        chunk['start_time'] = items[i].start_time;
+                    }
+                    chunk['end_time'] = items[i].end_time;
+                    // Don't want to start a fresh sentence with a space
+                    var spacer = (chunk['word_index'] == 1) ? '' : ' ';
+                    chunk['sentence'] = chunk['sentence'] + spacer + content;
+                    chunk['word_index']++;
+                }
+                else if (type == "punctuation") {
+                    // Add punctuation
+                    // But don't increment index
+                    chunk['sentence'] = chunk['sentence'] + content;
+                }
+                
+                // End the caption chunk if
+                // this item is sending punctuation
+                // there are no more items after this one
+                // We hit the word break limit (provided the NEXT item is not punctuation)
+                var item_is_ending_punctuation = content == '.' || content == '?' || content == '!';
+                var is_last_item = items.length - 1 == i;
+                var next_item_is_punctuation = i < items.length - 1 && items[i+1].type == "punctuation";
+                var hit_word_break_limit = use_word_break_limit && chunk['word_index'] >= word_break_limit && !next_item_is_punctuation;
+
+                if (item_is_ending_punctuation || hit_word_break_limit || is_last_item) {
+                    // End of the caption for this chunk
+                    // Add new empty chunk to end of array
+                    // and start over (or just exit loop).
+                    chunks.push(chunk);
+                    chunk = {
+                        start_time: '',
+                        end_time: '',
+                        word_index: 1,
+                        sentence: ''
+                    };
+                }
+            }
+
+            var srt = '';
+            // Build out srt
+            for (i = 0; i < chunks.length; i++) {
+                var chunk_index = i + 1;
+                srt = srt + chunk_index + "\n";
+                srt = srt + formatTime(chunks[i]['start_time']) + " --> " + formatTime(chunks[i]['end_time']) + "\n" + chunks[i]['sentence'] + "\n\n";
+            }
+
+            document.getElementById("srt").value = srt
+        }
+
+        function formatTime(t) {
+            [seconds, fraction] = t.split(".");
+            var result = date.toISOString(seconds * 1000).substr(11, 8);
+            // fractions of seconds need to be to 3 digits, or Twitter will reject
+            return result + "," + fraction.padEnd(3, '0');
+        }
+    </script>
+</head>
+
+<body>
+    <div style="text-align: center;">
+        <h1>Convert your Amazon Transcribe JSON to SRT</h1>
+            Paste the Amazon Transcribe JSON below
+        <br>
+        <br>
+        <textarea id="txt" style="width: 800px; height: 300px; border: 1px solid black;"></textarea>
+        <br>
+        <br>
+        <input type="checkbox" id="word-break" checked="checked"> Break after <input type="text" size="2" value="10" id="words"> words <input type="button" value="Create SRT" style="width: 120px;" onclick="createSRT()">
+        <br>
+        <br>
+        <textarea id="srt" style="width: 800px; height: 500px; border: 1px solid black;"></textarea>
+    </div>
+</body>
+</html>
