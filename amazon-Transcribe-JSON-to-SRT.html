@@ -94,7 +94,7 @@
 
         function formatTime(t) {
             [seconds, fraction] = t.split(".");
-            var result = new Date().toISOString(seconds * 1000).substr(11, 8);
+            var result = new Date(seconds * 1000).toISOString(seconds * 1000).substr(11, 8);
             // fractions of seconds need to be to 3 digits, or Twitter will reject
             return result + "," + fraction.padEnd(3, '0');
         }
