@@ -52,9 +52,9 @@ for i, item in enumerate(items):
         chunk['sentence'] = chunk['sentence'] + content
     
     # End the caption chunk if
-    # this item is sending punctuation
-    # there are no more items after this one
-    # We hit the word break limit (provided the NEXT item is not punctuation)
+    # - this item is sending punctuation
+    # - there are no more items after this one
+    # - we hit the word break limit (provided the NEXT item is not punctuation)
     item_is_ending_punctuation = content == '.' or content == '?' or content == '!'
     is_last_item = len(items) - 1 == i
     next_item_is_punctuation = i < len(items) - 1 and items[i+1]['type'] == "punctuation"
