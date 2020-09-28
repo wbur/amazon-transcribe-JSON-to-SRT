@@ -31,6 +31,8 @@ with open(filename) as f:
 
 items = data['results']['items']
 
+last_word_end_time = None
+
 for i, item in enumerate(items):
     type = item['type']
     content = item['alternatives'][0]['content']
@@ -38,13 +40,23 @@ for i, item in enumerate(items):
     # if a word, set the start time and end time (the latter is subject to change)
     # then add it to the current chunk         
     if type == "pronunciation":
+        item_start_time = item['start_time']
+
+        # In the event that a word claims to start BEFORE the end of
+        # the prior word, set start time equal to prior word end time.
+        # (Amazon Transcribe can screw this up sometimes.)
+        if last_word_end_time and item_start_time < last_word_end_time:
+          item_start_time = last_word_end_time
+
         if chunk['start_time'] == "":
-            chunk['start_time'] = item['start_time']
+            chunk['start_time'] = item_start_time
+
         chunk['end_time'] = item['end_time']
         # Don't want to start a fresh sentence with a space
         spacer = '' if chunk['word_index'] == 1 else ' '
         chunk['sentence'] = chunk['sentence'] + spacer + content
         chunk['word_index'] = chunk['word_index'] + 1
+        last_word_end_time = item['end_time']
     
     elif type == "punctuation":
         # Add punctuation
@@ -56,9 +68,9 @@ for i, item in enumerate(items):
     # - there are no more items after this one
     # - we hit the word break limit (provided the NEXT item is not punctuation)
     item_is_ending_punctuation = content == '.' or content == '?' or content == '!'
-    is_last_item = len(items) - 1 == i
     next_item_is_punctuation = i < len(items) - 1 and items[i+1]['type'] == "punctuation"
     hit_word_break_limit = chunk['word_index'] >= word_break_limit and not next_item_is_punctuation
+    is_last_item = len(items) - 1 == i
 
     if item_is_ending_punctuation or hit_word_break_limit or is_last_item:
         # End of the caption for this chunk
